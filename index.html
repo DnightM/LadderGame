@@ -52,8 +52,6 @@
   let ladderLines = [], players = [], results = [], isAnimating = false;
   let usedPlayers = new Set();
 
-  const canvasSize = Math.min(window.innerWidth, window.innerHeight) * 0.9;
-
   canvas.width = window.innerWidth * 0.8;
   canvas.height = window.innerHeight * 0.8;
 
@@ -64,16 +62,12 @@
   let ladderInitialized = false;
   let seededRandom = createSeededRandom(getTodaySeed());
 
-  // function createSeededRandom(seed) {
-  //   let s = seed;
-  //   return function () {
-  //     s = Math.sin(s) * 10000;
-  //     return s - Math.floor(s);
-  //   };
-  // }
-
   function createSeededRandom(seed) {
-    return () => Math.random();
+    let s = seed;
+    return function () {
+      s = Math.sin(s) * 10000;
+      return s - Math.floor(s);
+    };
   }
 
   function getTodaySeed() {
@@ -204,13 +198,6 @@
   function createPlayerButtons() {
     const container = document.getElementById('playerButtons');
     container.innerHTML = '';
-    players.forEach((p, i) => {
-      const btn = document.createElement('button');
-      btn.textContent = p;
-      btn.onclick = () => animatePath(i);
-      container.appendChild(btn);
-    });
-
     const allBtn = document.createElement('button');
     allBtn.textContent = '전체보기';
     allBtn.onclick = () => animateAllPaths();
@@ -308,7 +295,7 @@
     let citizenNum = 1;
 
     for (let i = 0; i < mafiaCount; i++) {
-      results.push(`마피아${i + 1}`);
+      results.push(`마피아`);
 
       // 남은 시민 수 계산
       const remainingMafia = mafiaCount - i; // 남은 마피아 수
@@ -316,74 +303,12 @@
       const take = Math.floor(remainingCitizen / remainingMafia); // 남은 시민을 남은 마피아 수에 맞게 배정
 
       for (let j = 0; j < take; j++) {
-        results.push(`시민${citizenNum++}`);
+        results.push(`시민`);
+        citizenNum++
       }
     }
 
     results.sort(() => seededRandom() - 0.5);
-  }
-
-  function animatePath(index) {
-    if (!ladderInitialized || isAnimating || usedPlayers.has(index)) return;
-    isAnimating = true;
-    usedPlayers.add(index);
-
-    const colGap = canvas.width / (players.length + 1);
-    const rowGap = 20;
-    const rowCount = Math.floor((canvas.height - marginTop - marginBottom) / rowGap);
-    let col = index;
-    let x = colGap * (col + 1);
-    let y = marginTop;
-
-    const path = [{x, y}];
-
-    for (let r = 0; r < rowCount; r++) {
-      y += rowGap;
-      let curX = colGap * (col + 1);
-
-      const right = ladderLines.find(line =>
-        Math.abs(line.x - curX) < EPSILON && Math.abs(line.y - (y - rowGap)) < EPSILON
-      );
-      const left = ladderLines.find(line =>
-        Math.abs(line.x - (curX - colGap)) < EPSILON && Math.abs(line.y - (y - rowGap)) < EPSILON
-      );
-
-      if (right) {
-        path.push({x: curX + colGap, y: y - rowGap});
-        path.push({x: curX + colGap, y});
-        col++;
-      } else if (left) {
-        path.push({x: curX - colGap, y: y - rowGap});
-        path.push({x: curX - colGap, y});
-        col--;
-      }
-
-      path.push({x: colGap * (col + 1), y});
-    }
-
-    drawLadderBaseOnly();
-    ctx.strokeStyle = 'red';
-    ctx.lineWidth = 2;
-
-    let i = 0;
-
-    function step() {
-      if (i >= path.length - 1) {
-        ctx.strokeStyle = 'black';
-        ctx.lineWidth = 1;
-        isAnimating = false;
-        logResult(index, col);
-        return;
-      }
-      ctx.beginPath();
-      ctx.moveTo(path[i].x, path[i].y);
-      ctx.lineTo(path[i + 1].x, path[i + 1].y);
-      ctx.stroke();
-      i++;
-      requestAnimationFrame(step);
-    }
-
-    step();
   }
 
   function drawLadderBaseOnly() {
