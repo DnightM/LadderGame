@@ -58,7 +58,6 @@
 
   const marginTop = canvas.height * 0.1;
   const marginBottom = canvas.height * 0.1;
-  const EPSILON = 1;
 
   let ladderInitialized = false;
   let seededRandom = createSeededRandom(getTodaySeed());
@@ -180,7 +179,6 @@
     ctx.textAlign = 'center';
     ctx.fillText(getTodayDateString(), canvas.width / 2, canvas.height / 2);
     ctx.restore();
-
   }
 
   function drawTopBottomLabels(colGap) {
