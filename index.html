@@ -4,10 +4,23 @@
   <meta charset="UTF-8">
   <title>사다리 게임</title>
   <style>
-    body { text-align: center; font-family: sans-serif; }
-    canvas { border: 1px solid #000; margin-top: 20px; }
-    input, button { margin: 10px; }
-    #resultLog { margin-top: 20px; }
+    body {
+      text-align: center;
+      font-family: sans-serif;
+    }
+
+    canvas {
+      border: 1px solid #000;
+      margin-top: 20px;
+    }
+
+    input, button {
+      margin: 10px;
+    }
+
+    #resultLog {
+      margin-top: 20px;
+    }
   </style>
 </head>
 <body>
@@ -36,7 +49,7 @@
     const colGap = width / (count + 1);
     const ladderHeight = height - marginTop - marginBottom;
     const rowGap = 20;
-    const rowCount = Math.floor(ladderHeight / rowGap);
+    const rowCount = Math.floor((ladderHeight - 20) / rowGap);
 
     ctx.clearRect(0, 0, width, height);
     ladderLines = [];
@@ -46,42 +59,39 @@
       ctx.moveTo(colGap * i, marginTop);
       ctx.lineTo(colGap * i, height - marginBottom);
       ctx.stroke();
-
-      // 사다리 손잡이 (위 삼각형)
-      ctx.beginPath();
-      ctx.moveTo(colGap * i - 10, marginTop - 20);
-      ctx.lineTo(colGap * i + 10, marginTop - 20);
-      ctx.lineTo(colGap * i, marginTop);
-      ctx.closePath();
-      ctx.fillStyle = '#000';
-      ctx.fill();
     }
 
-    for (let r = 0; r < rowCount; r++) {
-      for (let c = 1; c < count; c++) {
-        const y = marginTop + r * rowGap;
-        const x = colGap * c;
+    const horizontalLinesPerGap = 5; // 각 세로선 사이에 들어갈 가로선 수
+    const usedY = new Set();
 
-        const exists = ladderLines.find(l =>
-          Math.abs(l.x - x) < EPSILON && Math.abs(l.y - y) < EPSILON
-        );
+    for (let c = 1; c < count; c++) { // 세로선 사이: (count - 1) 구간
+      let added = 0;
+      while (added < horizontalLinesPerGap) {
+        const y = Math.floor(Math.random() * rowCount) * rowGap + marginTop + 20;
 
+        // 겹침 방지
         const overlap = ladderLines.find(l =>
           Math.abs(l.y - y) < EPSILON &&
-          (Math.abs(l.x - (x - colGap)) < EPSILON || Math.abs(l.x - (x + colGap)) < EPSILON)
+          (
+            Math.abs(l.x - (colGap * (c - 1))) < EPSILON ||
+            Math.abs(l.x - (colGap * c)) < EPSILON ||
+            Math.abs(l.x - (colGap * (c + 1))) < EPSILON
+          )
         );
 
-        if (!exists && !overlap && Math.random() < 0.3) {
+        if (!overlap) {
+          const x = colGap * c;
           ctx.beginPath();
           ctx.moveTo(x, y);
           ctx.lineTo(x + colGap, y);
           ctx.stroke();
-          ladderLines.push({ x, y });
+          ladderLines.push({x, y});
+          added++;
         }
       }
     }
 
-    players = Array.from({ length: count }, (_, i) => `${i + 1}등`);
+    players = Array.from({length: count}, (_, i) => `${i + 1}등`);
     assignRoles(count);
     drawTopBottomLabels(colGap);
     createPlayerButtons();
@@ -134,7 +144,7 @@
     let x = colGap * (col + 1);
     let y = marginTop;
 
-    const path = [{ x, y }];
+    const path = [{x, y}];
 
     for (let r = 0; r < rowCount; r++) {
       y += rowGap;
@@ -148,16 +158,16 @@
       );
 
       if (right) {
-        path.push({ x: curX + colGap, y: y - rowGap });
-        path.push({ x: curX + colGap, y });
+        path.push({x: curX + colGap, y: y - rowGap});
+        path.push({x: curX + colGap, y});
         col++;
       } else if (left) {
-        path.push({ x: curX - colGap, y: y - rowGap });
-        path.push({ x: curX - colGap, y });
+        path.push({x: curX - colGap, y: y - rowGap});
+        path.push({x: curX - colGap, y});
         col--;
       }
 
-      path.push({ x: colGap * (col + 1), y });
+      path.push({x: colGap * (col + 1), y});
     }
 
     drawLadderBaseOnly();
@@ -165,6 +175,7 @@
     ctx.lineWidth = 2;
 
     let i = 0;
+
     function step() {
       if (i >= path.length - 1) {
         ctx.strokeStyle = 'black';
@@ -180,6 +191,7 @@
       i++;
       requestAnimationFrame(step);
     }
+
     step();
   }
 
@@ -194,18 +206,9 @@
       ctx.moveTo(colGap * i, marginTop);
       ctx.lineTo(colGap * i, height - marginBottom);
       ctx.stroke();
-
-      // 손잡이
-      ctx.beginPath();
-      ctx.moveTo(colGap * i - 10, marginTop - 20);
-      ctx.lineTo(colGap * i + 10, marginTop - 20);
-      ctx.lineTo(colGap * i, marginTop);
-      ctx.closePath();
-      ctx.fillStyle = '#000';
-      ctx.fill();
     }
 
-    ladderLines.forEach(({ x, y }) => {
+    ladderLines.forEach(({x, y}) => {
       ctx.beginPath();
       ctx.moveTo(x, y);
       ctx.lineTo(x + colGap, y);
