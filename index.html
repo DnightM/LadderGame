@@ -78,6 +78,17 @@
     return parseInt(`${y}${m}${d}`);
   }
 
+  function getTodayDateString() {
+    const now = new Date();
+    const utc = now.getTime() + now.getTimezoneOffset() * 60000;
+    const koreaTime = new Date(utc + 9 * 60 * 60000); // UTC+9
+
+    const y = koreaTime.getFullYear();
+    const m = String(koreaTime.getMonth() + 1).padStart(2, '0');
+    const d = String(koreaTime.getDate()).padStart(2, '0');
+
+    return `${y}-${m}-${d}`;
+  }
 
   function drawLadder() {
     const count = parseInt(document.getElementById('playerCount').value);
@@ -128,6 +139,7 @@
 
     players = Array.from({length: count}, (_, i) => `${i + 1}등`);
     assignRoles(count);
+    drawDateOverlay();
     drawTopBottomLabels(colGap);
     createPlayerButtons();
     usedPlayers.clear();
@@ -135,12 +147,27 @@
     ladderInitialized = true;
   }
 
+  function drawDateOverlay() {
+    // 흐릿한 오늘 날짜 텍스트 그리기
+    ctx.save();
+    ctx.globalAlpha = 0.08; // 투명도 낮게 설정 (0.0 ~ 1.0)
+    ctx.font = 'bold 100px sans-serif';
+    ctx.fillStyle = 'black';
+    ctx.textAlign = 'center';
+    ctx.fillText(getTodayDateString(), canvas.width / 2, canvas.height / 2);
+    ctx.restore();
+
+  }
+
   function drawTopBottomLabels(colGap) {
     ctx.font = '14px sans-serif';
     ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle'; // 가운데 정렬로
+
     players.forEach((p, i) => {
-      ctx.fillText(p, colGap * (i + 1), 30);
-      ctx.fillText(results[i], colGap * (i + 1), canvas.height - 20);
+      const x = colGap * (i + 1);
+      ctx.fillText(p, x, marginTop - 10); // 위쪽 텍스트 위치 좀 내리기
+      ctx.fillText(results[i], x, canvas.height - marginBottom + 10); // 아래 텍스트 위치 좀 올리기
     });
   }
 
@@ -332,7 +359,7 @@
       ctx.lineTo(x + colGap, y);
       ctx.stroke();
     });
-
+    drawDateOverlay();
     drawTopBottomLabels(colGap);
   }
 
