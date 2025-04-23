@@ -64,12 +64,16 @@
   let ladderInitialized = false;
   let seededRandom = createSeededRandom(getTodaySeed());
 
+  // function createSeededRandom(seed) {
+  //   let s = seed;
+  //   return function () {
+  //     s = Math.sin(s) * 10000;
+  //     return s - Math.floor(s);
+  //   };
+  // }
+
   function createSeededRandom(seed) {
-    let s = seed;
-    return function () {
-      s = Math.sin(s) * 10000;
-      return s - Math.floor(s);
-    };
+    return () => Math.random();
   }
 
   function getTodaySeed() {
@@ -103,7 +107,7 @@
    * @returns {Array} - 2차원 boolean 배열
    */
   function generateLadderArray(height, count) {
-    const ladder = Array.from({ length: height }, () => Array(count - 1).fill(false));
+    const ladder = Array.from({length: height}, () => Array(count - 1).fill(false));
 
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < count - 1; x++) {
@@ -126,7 +130,7 @@
 
   function drawLadder() {
     const count = parseInt(document.getElementById('playerCount').value);
-    const width =  canvas.width;
+    const width = canvas.width;
     const height = canvas.height;
     const colGap = width / (count + 1);
     const ladderHeight = height - marginTop - marginBottom;
@@ -158,12 +162,12 @@
           ctx.moveTo(startX, yPos);
           ctx.lineTo(startX + colGap, yPos);
           ctx.stroke();
-          ladderLines.push({ x: startX, y: yPos });
+          ladderLines.push({x: startX, y: yPos});
         }
       }
     }
 
-    players = Array.from({ length: count }, (_, i) => `${i + 1}등`);
+    players = Array.from({length: count}, (_, i) => `${i + 1}등`);
     assignRoles(count);
     drawDateOverlay();
     drawTopBottomLabels(colGap);
@@ -291,15 +295,31 @@
     });
   }
 
+  /**
+   * 마피아 1명당 시민 3명 할당 (남으면 마지막 마피아에게 덜 줌)
+   * @param {number} count - 전체 인원 수
+   */
   function assignRoles(count) {
-    const mafia = Math.floor(count / 4);
-    const citizen = mafia * 3;
-    const trash = count - (mafia + citizen);
-    results = [
-      ...Array(mafia).fill('마피아'),
-      ...Array(citizen).fill('시민'),
-      ...Array(trash).fill('꽝')
-    ];
+    const mafiaCount = Math.floor(count / 4) + (count % 4 === 0 ? 0 : 1); // 마피아는 1명당 4명 기준으로
+    const citizenCount = count - mafiaCount;
+
+    results = [];
+
+    let citizenNum = 1;
+
+    for (let i = 0; i < mafiaCount; i++) {
+      results.push(`마피아${i + 1}`);
+
+      // 남은 시민 수 계산
+      const remainingMafia = mafiaCount - i; // 남은 마피아 수
+      const remainingCitizen = citizenCount - (citizenNum - 1); // 남은 시민 수
+      const take = Math.floor(remainingCitizen / remainingMafia); // 남은 시민을 남은 마피아 수에 맞게 배정
+
+      for (let j = 0; j < take; j++) {
+        results.push(`시민${citizenNum++}`);
+      }
+    }
+
     results.sort(() => seededRandom() - 0.5);
   }
 
