@@ -33,7 +33,7 @@
 </head>
 <body>
 <h1>사다리 게임</h1>
-<canvas id="ladderCanvas" width="600" height="500"></canvas>
+<canvas id="ladderCanvas" width="750" height="650"></canvas>
 
 <!-- 인원 수 선택 및 버튼 아래로 이동 -->
 <div>
@@ -52,8 +52,8 @@
   let ladderLines = [], players = [], results = [], isAnimating = false;
   let usedPlayers = new Set();
 
-  const marginTop = 120;
-  const marginBottom = 60;
+  const marginTop = canvas.height * 0.1;
+  const marginBottom = canvas.height * 0.1;
   const EPSILON = 1;
   let ladderInitialized = false;
   let seededRandom = createSeededRandom(getTodaySeed());
