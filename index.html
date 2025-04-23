@@ -56,6 +56,28 @@
   const marginBottom = 60;
   const EPSILON = 1;
   let ladderInitialized = false;
+  let seededRandom = createSeededRandom(getTodaySeed());
+
+  function createSeededRandom(seed) {
+    let s = seed;
+    return function () {
+      s = Math.sin(s) * 10000;
+      return s - Math.floor(s);
+    };
+  }
+
+  function getTodaySeed() {
+    const now = new Date();
+    const utc = now.getTime() + now.getTimezoneOffset() * 60000;
+    const koreaTime = new Date(utc + 9 * 60 * 60000); // UTC+9
+
+    const y = koreaTime.getFullYear();
+    const m = String(koreaTime.getMonth() + 1).padStart(2, '0');
+    const d = String(koreaTime.getDate()).padStart(2, '0');
+
+    return parseInt(`${y}${m}${d}`);
+  }
+
 
   function drawLadder() {
     const count = parseInt(document.getElementById('playerCount').value);
@@ -65,6 +87,7 @@
     const ladderHeight = height - marginTop - marginBottom;
     const rowGap = 20;
     const rowCount = Math.floor((ladderHeight - 20) / rowGap);
+    seededRandom = createSeededRandom(getTodaySeed());
 
     ctx.clearRect(0, 0, width, height);
     ladderLines = [];
@@ -80,7 +103,7 @@
     for (let c = 1; c < count; c++) {
       let added = 0;
       while (added < horizontalLinesPerGap) {
-        const y = Math.floor(Math.random() * rowCount) * rowGap + marginTop + 20;
+        const y = Math.floor(seededRandom() * rowCount) * rowGap + marginTop + 20;
 
         const overlap = ladderLines.find(l =>
           Math.abs(l.y - y) < EPSILON &&
@@ -224,7 +247,7 @@
       ...Array(citizen).fill('시민'),
       ...Array(trash).fill('꽝')
     ];
-    results.sort(() => Math.random() - 0.5);
+    results.sort(() => seededRandom() - 0.5);
   }
 
   function animatePath(index) {
