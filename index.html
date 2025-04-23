@@ -18,18 +18,33 @@
       margin: 10px;
     }
 
-    #resultLog {
-      margin-top: 20px;
+    table {
+      margin: 20px auto;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    td {
+      padding: 4px 8px;
+      border: none;
+      text-align: left;
     }
   </style>
 </head>
 <body>
 <h1>사다리 게임</h1>
-<label>인원 수: <input type="number" id="playerCount" min="2" max="10" value="4"></label>
-<button onclick="drawLadder()">사다리 생성</button>
 <canvas id="ladderCanvas" width="600" height="500"></canvas>
+
+<!-- 인원 수 선택 및 버튼 아래로 이동 -->
+<div>
+  <label>인원 수: <input type="number" id="playerCount" min="2" max="10" value="4"></label>
+  <button onclick="drawLadder()">사다리 생성</button>
+</div>
+
 <div id="playerButtons"></div>
-<div id="resultLog"></div>
+
+<!-- 결과를 테이블로 출력 -->
+<table id="resultLog"></table>
 
 <script>
   const canvas = document.getElementById('ladderCanvas');
@@ -61,15 +76,12 @@
       ctx.stroke();
     }
 
-    const horizontalLinesPerGap = 5; // 각 세로선 사이에 들어갈 가로선 수
-    const usedY = new Set();
-
-    for (let c = 1; c < count; c++) { // 세로선 사이: (count - 1) 구간
+    const horizontalLinesPerGap = 5;
+    for (let c = 1; c < count; c++) {
       let added = 0;
       while (added < horizontalLinesPerGap) {
         const y = Math.floor(Math.random() * rowCount) * rowGap + marginTop + 20;
 
-        // 겹침 방지
         const overlap = ladderLines.find(l =>
           Math.abs(l.y - y) < EPSILON &&
           (
@@ -117,6 +129,89 @@
       btn.textContent = p;
       btn.onclick = () => animatePath(i);
       container.appendChild(btn);
+    });
+
+    const allBtn = document.createElement('button');
+    allBtn.textContent = '전체보기';
+    allBtn.onclick = () => animateAllPaths();
+    container.appendChild(allBtn);
+  }
+
+  async function animateAllPaths() {
+    if (!ladderInitialized || isAnimating) return;
+    isAnimating = true;
+
+    for (let i = 0; i < players.length; i++) {
+      if (!usedPlayers.has(i)) {
+        await animatePathAsync(i);
+      }
+    }
+
+    isAnimating = false;
+  }
+
+  /**
+   * 단일 등수 애니메이션을 Promise 형태로 감싸서 await 가능하게 함
+   */
+  function animatePathAsync(index) {
+    return new Promise(resolve => {
+      const colGap = canvas.width / (players.length + 1);
+      const rowGap = 20;
+      const rowCount = Math.floor((canvas.height - marginTop - marginBottom) / rowGap);
+      let col = index;
+      let x = colGap * (col + 1);
+      let y = marginTop;
+
+      const path = [{x, y}];
+
+      for (let r = 0; r < rowCount; r++) {
+        y += rowGap;
+        let curX = colGap * (col + 1);
+
+        const right = ladderLines.find(line =>
+          Math.abs(line.x - curX) < EPSILON && Math.abs(line.y - (y - rowGap)) < EPSILON
+        );
+        const left = ladderLines.find(line =>
+          Math.abs(line.x - (curX - colGap)) < EPSILON && Math.abs(line.y - (y - rowGap)) < EPSILON
+        );
+
+        if (right) {
+          path.push({x: curX + colGap, y: y - rowGap});
+          path.push({x: curX + colGap, y});
+          col++;
+        } else if (left) {
+          path.push({x: curX - colGap, y: y - rowGap});
+          path.push({x: curX - colGap, y});
+          col--;
+        }
+
+        path.push({x: colGap * (col + 1), y});
+      }
+
+      drawLadderBaseOnly();
+      ctx.strokeStyle = 'red';
+      ctx.lineWidth = 2;
+
+      let i = 0;
+
+      function step() {
+        if (i >= path.length - 1) {
+          ctx.strokeStyle = 'black';
+          ctx.lineWidth = 1;
+          usedPlayers.add(index);
+          logResult(index, col);
+          resolve(); // 다음 등수로 진행
+          return;
+        }
+        ctx.beginPath();
+        ctx.moveTo(path[i].x, path[i].y);
+        ctx.lineTo(path[i + 1].x, path[i + 1].y);
+        ctx.stroke();
+        i++;
+        requestAnimationFrame(step);
+      }
+
+      step();
     });
   }
 
@@ -219,24 +314,20 @@
   }
 
   function logResult(startIdx, endIdx) {
-    const logDiv = document.getElementById('resultLog');
-    const entry = document.createElement('div');
-    entry.textContent = `${players[startIdx]} → ${results[endIdx]}`;
-    logDiv.appendChild(entry);
+    const table = document.getElementById('resultLog');
+    const row = document.createElement('tr');
+    row.innerHTML = `<td>${players[startIdx]}</td><td>→</td><td>${results[endIdx]}</td>`;
+    table.appendChild(row);
 
-    const entries = Array.from(logDiv.children).map(div => div.textContent);
-    entries.sort((a, b) => {
-      const numA = parseInt(a.match(/\d+/)[0]);
-      const numB = parseInt(b.match(/\d+/)[0]);
+    const rows = Array.from(table.rows);
+    rows.sort((a, b) => {
+      const numA = parseInt(a.cells[0].textContent);
+      const numB = parseInt(b.cells[0].textContent);
       return numA - numB;
     });
 
-    logDiv.innerHTML = '';
-    entries.forEach(e => {
-      const div = document.createElement('div');
-      div.textContent = e;
-      logDiv.appendChild(div);
-    });
+    table.innerHTML = '';
+    rows.forEach(r => table.appendChild(r));
   }
 </script>
 </body>
