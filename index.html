@@ -33,11 +33,11 @@
 </head>
 <body>
 <h1>사다리 게임</h1>
-<canvas id="ladderCanvas" width="750" height="650"></canvas>
+<canvas id="ladderCanvas"></canvas>
 
 <!-- 인원 수 선택 및 버튼 아래로 이동 -->
 <div>
-  <label>인원 수: <input type="number" id="playerCount" min="2" max="10" value="10"></label>
+  <label>인원 수: <input type="number" id="playerCount" min="3" max="50" value=11></label>
   <button onclick="drawLadder()">사다리 생성</button>
 </div>
 
@@ -52,9 +52,15 @@
   let ladderLines = [], players = [], results = [], isAnimating = false;
   let usedPlayers = new Set();
 
+  const canvasSize = Math.min(window.innerWidth, window.innerHeight) * 0.9;
+
+  canvas.width = window.innerWidth * 0.8;
+  canvas.height = window.innerHeight * 0.8;
+
   const marginTop = canvas.height * 0.1;
   const marginBottom = canvas.height * 0.1;
   const EPSILON = 1;
+
   let ladderInitialized = false;
   let seededRandom = createSeededRandom(getTodaySeed());
 
@@ -90,9 +96,37 @@
     return `${y}-${m}-${d}`;
   }
 
+  /**
+   * 사다리 배열 생성
+   * @param {number} height - 가로줄 수
+   * @param {number} count - 세로줄 수
+   * @returns {Array} - 2차원 boolean 배열
+   */
+  function generateLadderArray(height, count) {
+    const ladder = Array.from({ length: height }, () => Array(count - 1).fill(false));
+
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < count - 1; x++) {
+        if (x > 0 && ladder[y][x - 1]) continue;
+
+        // 확률을 위치 기반으로 조정 (예: 중앙에 가까울수록 확률 높임)
+        const bias = 0.15 + 0.2 * Math.sin((x / (count - 2)) * Math.PI); // 0.15 ~ 0.35
+
+        // 이전 줄에 같은 위치에 연결이 있었으면 확률 낮춤
+        const prev = y > 0 && ladder[y - 1][x] ? -0.1 : 0;
+
+        if (seededRandom() < bias + prev) {
+          ladder[y][x] = true;
+        }
+      }
+    }
+
+    return ladder;
+  }
+
   function drawLadder() {
     const count = parseInt(document.getElementById('playerCount').value);
-    const width = canvas.width;
+    const width =  canvas.width;
     const height = canvas.height;
     const colGap = width / (count + 1);
     const ladderHeight = height - marginTop - marginBottom;
@@ -103,6 +137,7 @@
     ctx.clearRect(0, 0, width, height);
     ladderLines = [];
 
+    // 세로줄 그리기
     for (let i = 1; i <= count; i++) {
       ctx.beginPath();
       ctx.moveTo(colGap * i, marginTop);
@@ -110,34 +145,25 @@
       ctx.stroke();
     }
 
-    const horizontalLinesPerGap = 5;
-    for (let c = 1; c < count; c++) {
-      let added = 0;
-      while (added < horizontalLinesPerGap) {
-        const y = Math.floor(seededRandom() * rowCount) * rowGap + marginTop + 20;
+    // 사다리 배열 생성
+    const ladderArray = generateLadderArray(rowCount, count);
 
-        const overlap = ladderLines.find(l =>
-          Math.abs(l.y - y) < EPSILON &&
-          (
-            Math.abs(l.x - (colGap * (c - 1))) < EPSILON ||
-            Math.abs(l.x - (colGap * c)) < EPSILON ||
-            Math.abs(l.x - (colGap * (c + 1))) < EPSILON
-          )
-        );
-
-        if (!overlap) {
-          const x = colGap * c;
+    // 가로줄 그리기
+    for (let y = 0; y < rowCount; y++) {
+      for (let x = 0; x < count - 1; x++) {
+        if (ladderArray[y][x]) {
+          const startX = colGap * (x + 1);
+          const yPos = marginTop + 20 + y * rowGap;
           ctx.beginPath();
-          ctx.moveTo(x, y);
-          ctx.lineTo(x + colGap, y);
+          ctx.moveTo(startX, yPos);
+          ctx.lineTo(startX + colGap, yPos);
           ctx.stroke();
-          ladderLines.push({x, y});
-          added++;
+          ladderLines.push({ x: startX, y: yPos });
         }
       }
     }
 
-    players = Array.from({length: count}, (_, i) => `${i + 1}등`);
+    players = Array.from({ length: count }, (_, i) => `${i + 1}등`);
     assignRoles(count);
     drawDateOverlay();
     drawTopBottomLabels(colGap);
