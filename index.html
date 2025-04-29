@@ -37,7 +37,7 @@
 
 <!-- 인원 수 선택 및 버튼 아래로 이동 -->
 <div>
-  <label>인원 수: <input type="number" id="playerCount" min="3" max="50" value=12></label>
+  <label>인원 수: <input type="number" id="playerCount" min="3" max="50"></label>
   <button onclick="drawLadder()">사다리 생성</button>
 </div>
 
@@ -49,7 +49,11 @@
 <script>
   const canvas = document.getElementById('ladderCanvas');
   const ctx = canvas.getContext('2d');
-  let ladderLines = [], players = [], results = [], isAnimating = false;
+
+  let playerCount = 12;
+  document.getElementById('playerCount').value = playerCount;
+
+  let ladderLines = [], players = [], results = [], isRunning = false;
   let usedPlayers = new Set();
   let ladderArray = [];
 
@@ -63,7 +67,7 @@
   let seededRandom = createSeededRandom(getTodaySeed());
 
   function createSeededRandom(seed) {
-    return function() {
+    return function () {
       let t = seed += 0x6D2B79F5;
       t = Math.imul(t ^ (t >>> 15), t | 1);
       t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
@@ -99,9 +103,10 @@
    * 사다리 배열 생성
    * @param {number} height - 가로줄 수
    * @param {number} count - 세로줄 수
+   * @param {function} random 시드 기반 랜덤 함수
    * @returns {Array} - 2차원 boolean 배열
    */
-  function generateLadderArray(height, count) {
+  function generateLadderArray(height, count, random) {
     const ladder = Array.from({length: height}, () => Array(count - 1).fill(false));
 
     for (let y = 1; y < height - 1; y++) {
@@ -114,7 +119,7 @@
         // 이전 줄에 같은 위치에 연결이 있었으면 확률 낮춤
         const prev = y > 0 && ladder[y - 1][x] ? -0.1 : 0;
 
-        if (seededRandom() < bias + prev) {
+        if (random() < bias + prev) {
           ladder[y][x] = true;
         }
       }
@@ -144,7 +149,7 @@
     }
 
     // 사다리 배열 생성
-    ladderArray = generateLadderArray(rowCount, count);
+    ladderArray = generateLadderArray(rowCount, count, seededRandom);
 
     // 가로줄 그리기
     for (let y = 0; y < rowCount; y++) {
@@ -162,7 +167,7 @@
     }
 
     players = Array.from({length: count}, (_, i) => `${i + 1}등`);
-    assignRoles(count);
+    assignRoles(count, seededRandom);
     drawDateOverlay();
     drawTopBottomLabels(colGap);
     createPlayerButtons();
@@ -201,19 +206,72 @@
     allBtn.textContent = '전체보기';
     allBtn.onclick = () => animateAllPaths();
     container.appendChild(allBtn);
+    const allBtn2 = document.createElement('button');
+    allBtn2.textContent = '결과만 보기';
+    allBtn2.onclick = () => showResultsImmediately();
+    container.appendChild(allBtn2);
   }
 
   async function animateAllPaths() {
-    if (!ladderInitialized || isAnimating) return;
-    isAnimating = true;
+    if (!ladderInitialized || isRunning) return;
+    isRunning = true;
+    // 결과 테이블 초기화
+    document.getElementById('resultLog').innerHTML = '';
 
-    for (let i = 0; i < players.length; i++) {
-      if (!usedPlayers.has(i)) {
-        await animatePathAsync(i);
+    try {
+      for (let i = 0; i < players.length; i++) {
+        if (!usedPlayers.has(i)) {
+          await animatePathAsync(i);
+        }
       }
+    } finally {
+      isRunning = false;
+    }
+  }
+
+  /**
+   * 애니메이션 없이 바로 결과를 계산하는 함수
+   */
+  function showResultsImmediately() {
+    if (isRunning) {
+      return;
+    }
+    isRunning = true;
+    try {
+      const count = players.length;
+      const colGap = canvas.width / (count + 1);
+      const rowCount = 100;
+      const rowGap = (canvas.height - marginTop - marginBottom) / (rowCount - 1);
+
+      // 결과 테이블 초기화
+      document.getElementById('resultLog').innerHTML = '';
+
+      // 각 플레이어의 경로 계산
+      players.forEach((_, i) => {
+        let col = i;
+        let y = marginTop;
+
+        // 경로 계산
+        for (let r = 0; r < rowCount; r++) {
+          y += rowGap;
+
+          // 오른쪽으로 이동
+          if (ladderArray[r] && ladderArray[r][col]) {
+            col += 1;
+          }
+          // 왼쪽으로 이동
+          else if (col > 0 && ladderArray[r] && ladderArray[r][col - 1]) {
+            col -= 1;
+          }
+        }
+
+        // 결과 테이블에 표시
+        logResult(i, col);
+      });
+    } finally {
+      isRunning = false;
     }
 
-    isAnimating = false;
   }
 
   /**
@@ -282,8 +340,9 @@
   /**
    * 마피아 1명당 시민 3명 할당 (남으면 마지막 마피아에게 덜 줌)
    * @param {number} count - 전체 인원 수
+   * @param {function} random 시드 기반 랜덤 함수
    */
-  function assignRoles(count) {
+  function assignRoles(count, random) {
     const mafiaCount = Math.floor(count / 4) + (count % 4 === 0 ? 0 : 1); // 마피아는 1명당 4명 기준으로
     const citizenCount = count - mafiaCount;
 
@@ -307,7 +366,7 @@
 
     // 시드 랜덤 기반 Fisher–Yates 셔플
     for (let i = results.length - 1; i > 0; i--) {
-      const j = Math.floor(seededRandom() * (i + 1));
+      const j = Math.floor(random() * (i + 1));
       [results[i], results[j]] = [results[j], results[i]];
     }
     return results;
@@ -351,6 +410,53 @@
 
     table.innerHTML = '';
     rows.forEach(r => table.appendChild(r));
+  }
+
+  {
+    // 시뮬레이션 코드
+    // 사다리 결과 계산
+    function simulateLadderResult(startIndex, ladderArray) {
+      let col = startIndex;
+      const rowCount = ladderArray.length;
+
+      for (let r = 0; r < rowCount; r++) {
+        if (ladderArray[r][col]) {
+          col++;
+        } else if (col > 0 && ladderArray[r][col - 1]) {
+          col--;
+        }
+      }
+      return col;
+    }
+
+    // 전체 시뮬레이션
+    function runSimulation(playerCount, repeatCount) {
+      const mafiaCounts = Array(playerCount).fill(0);
+      const citizenCounts = Array(playerCount).fill(0);
+
+      for (let seed = 1; seed <= repeatCount; seed++) {
+        const random = createSeededRandom(seed);
+        const ladderArray = generateLadderArray(100, playerCount, random);
+        const roles = assignRoles(playerCount, random);
+
+        for (let i = 0; i < playerCount; i++) {
+          const resultIndex = simulateLadderResult(i, ladderArray);
+          const role = roles[resultIndex];
+
+          if (role === '마피아') {
+            mafiaCounts[i]++;
+          } else {
+            citizenCounts[i]++;
+          }
+        }
+      }
+
+      return {mafiaCounts, citizenCounts};
+    }
+
+    // const result = runSimulation(12, 100000);
+    // console.log('1~12등별 마피아 수:', result.mafiaCounts);
+    // console.log('1~12등별 시민 수:', result.citizenCounts);
   }
 </script>
 </body>
