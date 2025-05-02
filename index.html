@@ -50,7 +50,7 @@
   const canvas = document.getElementById('ladderCanvas');
   const ctx = canvas.getContext('2d');
 
-  let playerCount = 12;
+  let playerCount = parseInt(new URLSearchParams(location.search).get('count') || '10', 10);
   document.getElementById('playerCount').value = playerCount;
 
   let ladderLines = [], players = [], results = [], isRunning = false;
@@ -238,8 +238,6 @@
     }
     isRunning = true;
     try {
-      const count = players.length;
-      const colGap = canvas.width / (count + 1);
       const rowCount = 100;
       const rowGap = (canvas.height - marginTop - marginBottom) / (rowCount - 1);
 
