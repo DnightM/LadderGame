@@ -452,9 +452,51 @@
       return {mafiaCounts, citizenCounts};
     }
 
+    /**
+     * 날짜 범위 기반 사다리 결과 시뮬레이션 출력
+     * @param {string} startDate - 시작일 (YYYY-MM-DD)
+     * @param {string} endDate - 종료일 (YYYY-MM-DD)
+     * @param {number} playerCount - 플레이어 수
+     */
+    function printLadderResultsByDateRange(startDate, endDate, playerCount) {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+
+      const rowCount = 100;
+      const lines = [];
+
+      for (
+              let date = new Date(start);
+              date <= end;
+              date.setDate(date.getDate() + 1)
+      ) {
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        const seed = parseInt(`${y}${m}${d}`);
+
+        const random = createSeededRandom(seed);
+        const ladder = generateLadderArray(rowCount, playerCount, random);
+        const roles = assignRoles(playerCount, random);
+
+        const results = [];
+        for (let i = 0; i < playerCount; i++) {
+          const resultIndex = simulateLadderResult(i, ladder);
+          results.push(roles[resultIndex]);
+        }
+
+        lines.push(`${y}-${m}-${d}\t${results.join('\t')}`);
+      }
+
+      console.log(lines.join('\n'));
+    }
+
+
+
     // const result = runSimulation(12, 100000);
     // console.log('1~12등별 마피아 수:', result.mafiaCounts);
     // console.log('1~12등별 시민 수:', result.citizenCounts);
+    // printLadderResultsByDateRange('2025-03-01', '2025-06-03', 11);
   }
 </script>
 </body>
