@@ -2,41 +2,153 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>사다리 게임</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
   <style>
+    :root {
+      --bg-color: #fdfaf4; /* Very light yellow background */
+      --content-bg: #ffffff;
+      --primary-color: #ffc107; /* Amber */
+      --primary-hover: #ffa000; /* Darker Amber */
+      --header-color: #f57c00; /* Dark Orange for headers */
+      --text-color: #333333;
+      --border-color: #eee;
+      --table-header-bg: #fff8e1; /* Light yellow for table header */
+    }
+
     body {
-      text-align: center;
-      font-family: sans-serif;
+      background-color: var(--bg-color);
+      font-family: 'Noto Sans KR', sans-serif;
+      color: var(--text-color);
+      margin: 0;
+      padding: 20px;
+    }
+
+    .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        background-color: var(--content-bg);
+        padding: 20px 40px;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        text-align: center;
+    }
+
+    h1, h2 {
+        color: var(--header-color);
     }
 
     canvas {
-      border: 1px solid #000;
+      border: 1px solid var(--border-color);
       margin-top: 20px;
+      border-radius: 8px;
+      max-width: 100%;
+      height: auto;
     }
 
-    input, button {
-      margin: 10px;
+    .control-group {
+        margin: 20px 0;
+    }
+
+    input[type="number"] {
+        padding: 8px 12px;
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        font-size: 16px;
+        margin-right: 10px;
+        width: 80px;
+        text-align: center;
+    }
+
+    button {
+      background-color: var(--primary-color);
+      color: var(--text-color);
+      border: none;
+      padding: 10px 20px;
+      border-radius: 6px;
+      font-size: 16px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background-color 0.2s;
+      margin: 5px;
+    }
+
+    button:hover {
+      background-color: var(--primary-hover);
     }
 
     table {
+      width: 100%;
       margin: 20px auto;
       border-collapse: collapse;
       font-size: 14px;
     }
 
-    td {
-      padding: 4px 8px;
-      border: none;
-      text-align: left;
+    td, th {
+      padding: 10px 12px;
+      border: 1px solid var(--border-color);
+      text-align: center;
+      font-weight: 500;
+    }
+
+    #historySection table {
+        font-size: 9px;
+    }
+
+    #historyStatsTable thead th {
+        background-color: var(--table-header-bg);
+    }
+
+    #historyStatsTable tbody tr:nth-child(odd) {
+        background-color: #fdfdfd;
+    }
+
+    #historyResultTableContainer table {
+        table-layout: fixed;
+        font-size: 8px;
+    }
+
+    #historyResultTableContainer table td, #historyResultTableContainer table th {
+        min-width: 50px;
+    }
+
+    .mafia-role {
+        color: #d32f2f; /* Red color for mafia */
+        font-weight: 500;
+    }
+
+    .table-container {
+        overflow-x: auto;
+    }
+
+    @media (max-width: 768px) {
+        body {
+            padding: 10px;
+        }
+        .container {
+            padding: 15px;
+        }
+        input[type="number"], button {
+            font-size: 14px;
+            padding: 8px 12px;
+        }
+        td, th {
+            padding: 8px 6px;
+            font-size: 12px;
+        }
     }
   </style>
 </head>
 <body>
+<div class="container">
 <h1>사다리 게임</h1>
 <canvas id="ladderCanvas"></canvas>
 
 <!-- 인원 수 선택 및 버튼 아래로 이동 -->
-<div>
+<div class="control-group">
   <label>인원 수: <input type="number" id="playerCount" min="3" max="50"></label>
   <button onclick="drawLadder()">사다리 생성</button>
 </div>
@@ -48,12 +160,16 @@
 
 <!-- 역대 마피아 결과 조회 -->
 <div id="historySection" style="margin-top: 40px;">
-  <h2>역대 마피아 결과 조회 (4월 24일부터 오늘까지)</h2>
-  <div>
+  <h2>역대 마피아 결과 조회</h2>
+  <div class="control-group">
     <label>인원 수: <input type="number" id="historyPlayerCount" min="3" max="50"></label>
-    <button onclick="showHistory()">결과 보기</button>
+    <button onclick="showHistory()">조회</button>
   </div>
-  <pre id="historyResult" style="text-align: left; margin: 20px auto; padding: 10px; border: 1px solid #ccc; background-color: #f9f9f9; white-space: pre-wrap; max-width: 80%;"></pre>
+  <div class="table-container">
+    <table id="historyStatsTable"></table>
+  </div>
+  <div id="historyResultTableContainer" class="table-container"></div>
+</div>
 </div>
 
 
@@ -61,15 +177,15 @@
   const canvas = document.getElementById('ladderCanvas');
   const ctx = canvas.getContext('2d');
 
-  let playerCount = parseInt(new URLSearchParams(location.search).get('count') || '10', 10);
+  let playerCount = parseInt(new URLSearchParams(location.search).get('count') || '11', 10);
   document.getElementById('playerCount').value = playerCount;
 
   let ladderLines = [], players = [], results = [], isRunning = false;
   let usedPlayers = new Set();
   let ladderArray = [];
 
-  canvas.width = window.innerWidth * 0.8;
-  canvas.height = window.innerHeight * 0.8;
+  canvas.width = window.innerWidth * 0.9;
+  canvas.height = window.innerHeight * 0.6; // Adjusted for better mobile view
 
   const marginTop = canvas.height * 0.1;
   const marginBottom = canvas.height * 0.1;
@@ -140,6 +256,7 @@
   }
 
   function drawLadder() {
+    isRunning = false; // Reset running state for safety
     const count = parseInt(document.getElementById('playerCount').value);
     const width = canvas.width;
     const height = canvas.height;
@@ -450,9 +567,9 @@
     const rowCount = 100;
     const lines = [];
 
-    const header = ['날짜\t'];
+    const header = ['날짜'];
     for (let i = 1; i <= playerCount; i++) {
-      header.push(`${i}번`);
+      header.push(`${i}등`);
     }
     lines.push(header.join('\t'));
 
@@ -497,19 +614,108 @@
     const startDate = '2025-04-24';
     const endDate = getTodayDateString(); // Always use today as the end date
     const playerCount = parseInt(historyPlayerCountInput.value, 10);
-    const resultContainer = document.getElementById('historyResult');
+    const resultContainer = document.getElementById('historyResultTableContainer');
+    const statsTable = document.getElementById('historyStatsTable');
 
     if (isNaN(playerCount)) {
-      resultContainer.textContent = '인원 수를 올바르게 입력해주세요.';
+      resultContainer.innerHTML = '<p>인원 수를 올바르게 입력해주세요.</p>';
+      statsTable.innerHTML = '';
       return;
     }
 
-    resultContainer.textContent = '결과를 계산하는 중...';
+    resultContainer.innerHTML = '<p>결과를 계산하는 중...</p>';
+    statsTable.innerHTML = '';
+
     // Use a timeout to prevent the UI from freezing during calculation
     setTimeout(() => {
-      const results = getLadderResultsByDateRange(startDate, endDate, playerCount);
-      resultContainer.textContent = results;
+      const resultsText = getLadderResultsByDateRange(startDate, endDate, playerCount);
+      displayResultsAsTable(resultsText);
+      displayStats(resultsText, playerCount);
     }, 10);
+  }
+
+  function displayResultsAsTable(resultsText) {
+      const container = document.getElementById('historyResultTableContainer');
+      const lines = resultsText.trim().split('\n');
+      const headerLine = lines.shift(); // remove header
+
+      let tableHtml = '<table><thead><tr>';
+      const headers = headerLine.split('\t');
+      headers.forEach(h => tableHtml += `<th>${h}</th>`);
+      tableHtml += '</tr></thead><tbody>';
+
+      lines.forEach(line => {
+          tableHtml += '<tr>';
+          const columns = line.split('\t');
+          columns.forEach((col, index) => {
+              if (index > 0 && col === '마피아') {
+                  tableHtml += `<td><span class="mafia-role">${col}</span></td>`;
+              } else {
+                  tableHtml += `<td>${col}</td>`;
+              }
+          });
+          tableHtml += '</tr>';
+      });
+
+      tableHtml += '</tbody></table>';
+      container.innerHTML = tableHtml;
+  }
+
+  function displayStats(resultsText, playerCount) {
+    const table = document.getElementById('historyStatsTable');
+    table.innerHTML = ''; // Clear previous stats
+
+    const lines = resultsText.trim().split('\n');
+    lines.shift(); // remove header
+
+    const stats = {};
+    for (let i = 1; i <= playerCount; i++) {
+        stats[i] = { mafia: 0, citizen: 0, total: 0 };
+    }
+
+    lines.forEach(line => {
+        const columns = line.split('\t');
+        columns.shift(); // remove date
+        columns.forEach((role, index) => {
+            const playerNum = index + 1;
+            if (stats[playerNum]) {
+                stats[playerNum].total++;
+                if (role === '마피아') {
+                    stats[playerNum].mafia++;
+                } else {
+                    stats[playerNum].citizen++;
+                }
+            }
+        });
+    });
+
+    let headerHtml = '<thead><tr><th></th>';
+    for (let i = 1; i <= playerCount; i++) {
+        headerHtml += `<th>${i}등</th>`;
+    }
+    headerHtml += '</tr></thead>';
+
+    let mafiaRow = '<tr><td>마피아</td>';
+    let citizenRow = '<tr><td>시민</td>';
+    let ratioRow = '<tr><td>마피아 확률</td>';
+
+    for (let i = 1; i <= playerCount; i++) {
+        const playerStats = stats[i];
+        const total = playerStats.total;
+        const mafia = playerStats.mafia;
+        const citizen = playerStats.citizen;
+        const ratio = total > 0 ? ((mafia / total) * 100).toFixed(1) + '%' : 'N/A';
+
+        mafiaRow += `<td>${mafia}</td>`;
+        citizenRow += `<td>${citizen}</td>`;
+        ratioRow += `<td>${ratio}</td>`;
+    }
+
+    mafiaRow += '</tr>';
+    citizenRow += '</tr>';
+    ratioRow += '</tr>';
+
+    table.innerHTML = headerHtml + '<tbody>' + mafiaRow + citizenRow + ratioRow + '</tbody>';
   }
 
 </script>
