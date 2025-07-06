@@ -46,6 +46,17 @@
 <!-- 결과를 테이블로 출력 -->
 <table id="resultLog"></table>
 
+<!-- 역대 마피아 결과 조회 -->
+<div id="historySection" style="margin-top: 40px;">
+  <h2>역대 마피아 결과 조회 (4월 24일부터 오늘까지)</h2>
+  <div>
+    <label>인원 수: <input type="number" id="historyPlayerCount" min="3" max="50"></label>
+    <button onclick="showHistory()">결과 보기</button>
+  </div>
+  <pre id="historyResult" style="text-align: left; margin: 20px auto; padding: 10px; border: 1px solid #ccc; background-color: #f9f9f9; white-space: pre-wrap; max-width: 80%;"></pre>
+</div>
+
+
 <script>
   const canvas = document.getElementById('ladderCanvas');
   const ctx = canvas.getContext('2d');
@@ -410,94 +421,97 @@
     rows.forEach(r => table.appendChild(r));
   }
 
-  {
-    // 시뮬레이션 코드
-    // 사다리 결과 계산
-    function simulateLadderResult(startIndex, ladderArray) {
-      let col = startIndex;
-      const rowCount = ladderArray.length;
+  // 사다리 결과 계산
+  function simulateLadderResult(startIndex, ladderArray) {
+    let col = startIndex;
+    const rowCount = ladderArray.length;
 
-      for (let r = 0; r < rowCount; r++) {
-        if (ladderArray[r][col]) {
-          col++;
-        } else if (col > 0 && ladderArray[r][col - 1]) {
-          col--;
-        }
+    for (let r = 0; r < rowCount; r++) {
+      if (ladderArray[r][col]) {
+        col++;
+      } else if (col > 0 && ladderArray[r][col - 1]) {
+        col--;
       }
-      return col;
     }
-
-    // 전체 시뮬레이션
-    function runSimulation(playerCount, repeatCount) {
-      const mafiaCounts = Array(playerCount).fill(0);
-      const citizenCounts = Array(playerCount).fill(0);
-
-      for (let seed = 1; seed <= repeatCount; seed++) {
-        const random = createSeededRandom(seed);
-        const ladderArray = generateLadderArray(100, playerCount, random);
-        const roles = assignRoles(playerCount, random);
-
-        for (let i = 0; i < playerCount; i++) {
-          const resultIndex = simulateLadderResult(i, ladderArray);
-          const role = roles[resultIndex];
-
-          if (role === '마피아') {
-            mafiaCounts[i]++;
-          } else {
-            citizenCounts[i]++;
-          }
-        }
-      }
-
-      return {mafiaCounts, citizenCounts};
-    }
-
-    /**
-     * 날짜 범위 기반 사다리 결과 시뮬레이션 출력
-     * @param {string} startDate - 시작일 (YYYY-MM-DD)
-     * @param {string} endDate - 종료일 (YYYY-MM-DD)
-     * @param {number} playerCount - 플레이어 수
-     */
-    function printLadderResultsByDateRange(startDate, endDate, playerCount) {
-      const start = new Date(startDate);
-      const end = new Date(endDate);
-
-      const rowCount = 100;
-      const lines = [];
-
-      for (
-              let date = new Date(start);
-              date <= end;
-              date.setDate(date.getDate() + 1)
-      ) {
-        const y = date.getFullYear();
-        const m = String(date.getMonth() + 1).padStart(2, '0');
-        const d = String(date.getDate()).padStart(2, '0');
-        const seed = parseInt(`${y}${m}${d}`);
-
-        const random = createSeededRandom(seed);
-        const ladder = generateLadderArray(rowCount, playerCount, random);
-        const roles = assignRoles(playerCount, random);
-
-        const results = [];
-        for (let i = 0; i < playerCount; i++) {
-          const resultIndex = simulateLadderResult(i, ladder);
-          results.push(roles[resultIndex]);
-        }
-
-        lines.push(`${y}-${m}-${d}\t${results.join('\t')}`);
-      }
-
-      console.log(lines.join('\n'));
-    }
-
-
-
-    // const result = runSimulation(12, 100000);
-    // console.log('1~12등별 마피아 수:', result.mafiaCounts);
-    // console.log('1~12등별 시민 수:', result.citizenCounts);
-    // printLadderResultsByDateRange('2025-03-01', '2025-06-03', 11);
+    return col;
   }
+
+  /**
+   * 날짜 범위 기반 사다리 결과 시뮬레이션
+   * @param {string} startDate - 시작일 (YYYY-MM-DD)
+   * @param {string} endDate - 종료일 (YYYY-MM-DD)
+   * @param {number} playerCount - 플레이어 수
+   * @returns {string} - 결과를 담은 문자열
+   */
+  function getLadderResultsByDateRange(startDate, endDate, playerCount) {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
+    const rowCount = 100;
+    const lines = [];
+
+    const header = ['날짜\t'];
+    for (let i = 1; i <= playerCount; i++) {
+      header.push(`${i}번`);
+    }
+    lines.push(header.join('\t'));
+
+    for (
+            let date = new Date(start);
+            date <= end;
+            date.setDate(date.getDate() + 1)
+    ) {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, '0');
+      const d = String(date.getDate()).padStart(2, '0');
+      const seed = parseInt(`${y}${m}${d}`);
+
+      const random = createSeededRandom(seed);
+      const ladder = generateLadderArray(rowCount, playerCount, random);
+      const roles = assignRoles(playerCount, random);
+
+      const results = [];
+      for (let i = 0; i < playerCount; i++) {
+        const resultIndex = simulateLadderResult(i, ladder);
+        results.push(roles[resultIndex]);
+      }
+
+      lines.push(`${y}-${m}-${d}\t${results.join('\t')}`);
+    }
+
+    return lines.join('\n');
+  }
+
+
+  // --- History Section Logic ---
+  const historyPlayerCountInput = document.getElementById('historyPlayerCount');
+  const mainPlayerCountInput = document.getElementById('playerCount');
+
+  // Sync player counts
+  historyPlayerCountInput.value = mainPlayerCountInput.value;
+  mainPlayerCountInput.addEventListener('change', () => {
+    historyPlayerCountInput.value = mainPlayerCountInput.value;
+  });
+
+  function showHistory() {
+    const startDate = '2025-04-24';
+    const endDate = getTodayDateString(); // Always use today as the end date
+    const playerCount = parseInt(historyPlayerCountInput.value, 10);
+    const resultContainer = document.getElementById('historyResult');
+
+    if (isNaN(playerCount)) {
+      resultContainer.textContent = '인원 수를 올바르게 입력해주세요.';
+      return;
+    }
+
+    resultContainer.textContent = '결과를 계산하는 중...';
+    // Use a timeout to prevent the UI from freezing during calculation
+    setTimeout(() => {
+      const results = getLadderResultsByDateRange(startDate, endDate, playerCount);
+      resultContainer.textContent = results;
+    }, 10);
+  }
+
 </script>
 </body>
 </html>
